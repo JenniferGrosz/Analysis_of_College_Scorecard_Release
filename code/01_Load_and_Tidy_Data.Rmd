@@ -9,17 +9,218 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Load Data
+### Relevant Libraries
 ```{r}
 # Load relevant libraries
-library(haven)
-library(jtools)
+#library(haven)
 library(vtable)
-library(tidylog)
 library(tidyverse)
-library(readr)
+library(tidylog)
+#library(readr)
 library(purrr)
 library(lubridate)
+```
+### Relevant Functions
+```{r}
+####################################################
+# Function to check for duplicates 
+check_dupes <- function(data, vars) {
+  data %>% 
+    select(vars) %>%
+    duplicated() %>%
+    max()
+}
 
+# Function to process the files into a data frame
+process_file <- function(df) {
+  schname <- df[,2]
+  keyword <- df[,3]
+  monthorweek <- df[,5]
+  index <- df[,6]
+  return(data.frame(schname = schname, keyword = keyword, 
+                    monthorweek = monthorweek, index = index))
+}
+```
+#### Load Cohort and Name Link Data
+```{r}
+####################### Load Scorecard Dictionary Data ####################### 
+scorecard_dictionary <- read.csv("../data/CollegeScorecardDataDictionary-09-08-2015.csv")
+
+####################### Load College Cohort Data ####################### 
+four_year <- read_csv("../data/Most+Recent+Cohorts+(Scorecard+Elements).csv") %>%
+  # Rename variables
+  rename(unitid = UNITID, institution = INSTNM, 
+         earnings = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
+  # Filter data to include predom. 4 year degree colleges only
+  # and remove NULL / PrivacySuppressed values from earnings col.
+  filter(PREDDEG == 3, earnings != "PrivacySuppressed",
+         earnings != "NULL") %>%
+  # Select relevant variables to include
+  select(unitid, institution, earnings) %>%
+  # Change data types
+  mutate(earnings = as.numeric(earnings),
+         institution = factor(institution))
+
+####################### Load Name Link Data ####################### 
+link <- read_csv("../data/id_name_link.csv") %>%
+  # Remove unnecessary column
+  select(-opeid) 
+
+##### Duplicates Check #####
+# Check for duplicates on Key (unitid)
+check_dupes(four_year, 'unitid') # 0 = no duplicates
+# Check for duplicates 
+check_dupes(link, 'unitid') # 0 = No Duplicates
+
+##### Merge Data #####
+# Merge data sets on unitid
+four_year <- inner_join(four_year, link, by = "unitid")
+
+##### Duplicates Check #####
+# check new joined data set for duplicates on Key (schname)
+check_dupes(four_year, 'schname') # 1 = Duplicates in data set
+# Pull duplicates into data set
+dups <- four_year %>%
+  filter(schname %in% unique(.[["schname"]][duplicated(.[["schname"]])]))
+# Filter duplicates out of data set
+four_year <- four_year %>%
+  filter(!(institution %in% dups$institution))
+
+##### Duplicates Check #####
+check_dupes(four_year, 'schname') # 0 = No Duplicates
+check_dupes(four_year, 'unitid') # 0 = No Duplicates
+
+##### Tidy Data
+four_year <- four_year %>%
+  mutate(high_earning = case_when(
+    earnings >= mean(earnings) ~ 1,
+    earnings < mean(earnings) ~ 0))
+```
+
+#### Google Trends Data
+```{r}
+####################### Load Google Trends Data ####################### 
+filelist <- list.files(path = "../data/",
+                       pattern = 'trends',
+                       full.names = TRUE)
+
+# Load Google trends data using function and filelist
+trends_df <- filelist %>%
+  map(read_csv) %>%
+  map(process_file) %>%
+  bind_rows() %>%
+  # Filter to only include 4 year colleges in df
+  filter((schname %in% four_year$schname)) %>%
+  # Remove NA's
+  filter(index != "NA") 
+
+
+
+
+#a <- unique(trends_df$schname)
+#a <- as.data.frame(a)
+```
+
+
+```{r}
+
+##### Tidy Google Trends Data
+trends_df <- trends_df %>%
+  # Split monthorweek column
+  separate(monthorweek, into = c("BeginningOfWeek", "EndOfWeek"), 
+           sep = " - ") %>%
+  # Convert columns to date data type
+  mutate(BeginningOfWeek = as.Date(BeginningOfWeek),
+         EndOfWeek = as.Date(EndOfWeek))  %>%
+  # Create unique identifier 
+  unite(col = "ID", c(schname, keyword, BeginningOfWeek), 
+        sep = "--", remove = FALSE) 
+
+##### Duplicates Check ##### 
+# Check for duplicates
+check_dupes(trends_df, "ID") # 1 = Duplicates in data set
+# Remove duplicates from data set
+trends_df <- trends_df %>%
+  filter(!duplicated(ID))
+
+##### Standardize Index Values 
+trends_df <- trends_df %>%
+  # group by keyword to calculate standardized index
+  group_by(keyword) %>%
+  # New column and caluclation for standardized index value
+  mutate(standardizedIndex = ((index - mean(index)) / sd(index))) %>%
+  ungroup() %>%
+  mutate(CollegeScorecard = case_when(
+    BeginningOfWeek > ymd("2015-09-12") ~ 1,
+    BeginningOfWeek < ymd("2015-09-12") ~ 0))
+
+##### Aggregation of standardized indexes by institution per month per year 
+trends_df <- trends_df %>%
+  # Split up column to get month and Year
+  separate(BeginningOfWeek, into = c("Year", "Month", "Day"), 
+           sep = "-", remove = FALSE) %>%
+  # group by institution, year, and month 
+  group_by(schname, BeginningOfWeek) %>%
+  # Create new column with aggregate values
+  mutate(aggregateIndex = mean(standardizedIndex)) %>%
+  ungroup()
+
+```
+
+```{r}
+#### Clean up data set
+trends_df <- trends_df %>%
+  # Remove unnecessary columns 
+  select(schname, Year, Month, Day, aggregateIndex, CollegeScorecard) %>%
+  # Convert to numeric data type
+  mutate(Year = as.numeric(Year),
+         Month = as.numeric(Month),
+         Day = as.numeric(Day)) 
+
+```
+
+```{r}
+df <- left_join(four_year, trends_df, by = "schname") 
+
+
+df <- df %>%
+    unite(col = "day", c(Year, Month, Day), 
+        sep = "-", remove = FALSE)  %>%
+  mutate(day = ymd(day)) %>%
+  na.omit()
+
+after_CollegeScorecard <- df %>%
+  filter(CollegeScorecard == 1) %>%
+  group_by(unitid, Year, Month) %>%
+  mutate(MonthAggIndex = mean(aggregateIndex)) %>%
+  ungroup() %>%
+  unite(col = "ID", c(unitid, MonthAggIndex), sep = "-", remove = FALSE)
+  
+
+before_CollegeScorecard <- df %>%
+  filter(CollegeScorecard == 0) %>%
+  group_by(unitid, Year, Month) %>%
+  mutate(MonthAggIndex = mean(aggregateIndex)) %>%
+  ungroup() %>%
+  unite(col = "ID", c(unitid, MonthAggIndex), sep = "-", remove = FALSE)
+
+df <- bind_rows(after_CollegeScorecard, before_CollegeScorecard)
+
+check_dupes(df, "ID") # 1 = Duplicates in data set
+# Remove duplicates from data set
+df <- df %>%
+  filter(!duplicated(ID))
+
+df <- df %>%
+  select(unitid, institution, Year, Month, Day, 
+         high_earning, CollegeScorecard, MonthAggIndex)
+
+write_csv(df,
+          file = "../data/mydata.csv",
+          na = "NA",
+          append = FALSE,
+          col_names = TRUE,
+          quote_escape = "double",
+          eol = "\n")
 ```
 
