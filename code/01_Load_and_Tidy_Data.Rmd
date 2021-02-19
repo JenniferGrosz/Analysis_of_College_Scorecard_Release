@@ -1,0 +1,25 @@
+---
+title: "Data Exploration Assignment"
+author: "Jennifer Grosz"
+date: "2/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Data
+```{r}
+# Load relevant libraries
+library(haven)
+library(jtools)
+library(vtable)
+library(tidylog)
+library(tidyverse)
+library(readr)
+library(purrr)
+library(lubridate)
+
+```
+
