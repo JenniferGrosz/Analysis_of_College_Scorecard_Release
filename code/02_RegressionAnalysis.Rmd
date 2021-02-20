@@ -11,5 +11,101 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Relevant Libraries
 ```{r}
+library(tidyverse)
+library(vtable)
+library(jtools)
+library(car)
+library(estimatr)
+```
+
+### Load Data Set
+```{r}
+mydata <- read_csv("../data/mydata.csv")
+# look at vtable
+vtable(mydata)
+# convert data types
+mydata <- mydata %>%
+  mutate(institution = factor(institution))
+```
+
+### Analyze Data Set
+Variables in data set:
+  * "unitid" - unique college ID (numeric)
+  * "institution" - name of college (character)
+  * "earnings" - median earnings 10 year after graduation per institution (numeric)
+  * "high_earning" - Dummy variable to distinguish between high_earning v. low earning colleges based on the mean of median graduate earnings ten years after graduation (numeric)
+  * "BeginningOfWeek" - start date for Weekly Google Trends data  (date) 
+  * "Year" - year from BeginningOfWeek (numeric)
+  * "Month" - month from BeginningOfWeek (numeric)
+  * "Day" - day from BeginningOfWeek (numeric)
+  * "EndOfWeek" - end date for Weekly Google Trends data (date)
+  * "Index" - Index score from Google Trends Data
+  * "keywordcount" - number of keywords in Google Trends data per institution (numeric)
+  * "aggIndex" - index scores that have been standardized (subtract the mean and divide by the standard deviation) and then aggregated by college per month (numeric)
+  * "CollegeScorecard" - Dummy variable to distinguish between index scores from before the College Scorecard was released and after it was released at the beginning of September 2015 (numeric)
+  * "time1" - incrementally increases over time increases
+```{r}
+# institution
+institutions <- mydata %>% filter(!duplicated(institution)) %>%
+  summarize(count=n()) # 1785 unique institutions in data set
+
+# Descriptive Statistics 
+summary(mydata[c("earnings", "BeginningOfWeek", "EndOfWeek",
+                 "keywordcount", "aggIndex", "high_earning", 
+                 "CollegeScorecard" )])
+
+# Standard Deviation
+sd(mydata$earnings) # standard deviation is 11803.74
+sd(mydata$aggIndex) # standard deviation is 0.5790659
+
+min(mydata$BeginningOfWeek) # March 24th, 2013
+max(mydata$EndOfWeek) # December 3rd, 2016
 
 ```
+This data set contains data collected between March 24th, 2013 through December 3rd, 2016. It includes data for 1785 institutions with a mean number of 3.278 keywords per institution. 
+
+
+# Regression Model 1
+```{r}
+model1 <- lm(aggIndex ~ CollegeScorecard + time + high_earning, mydata)
+export_summs(model1)
+```
+
+
+```{r}
+#Standardize Residuals
+unstandardizedResiduals <- resid(model1)
+standardizedResiduals <- (unstandardizedResiduals - mean(unstandardizedResiduals)) / sd(unstandardizedResiduals)
+
+# Standardize Predicted Values
+unstandardizedPredicted <- predict(model1)
+standardizedPredicted <- (unstandardizedPredicted - mean(unstandardizedPredicted)) / sd(unstandardizedPredicted)
+
+```
+
+```{r}
+ggplot(data = mydata) +
+  geom_histogram(mapping = aes(x = standardizedResiduals), binwidth = 1) +
+  xlab("Regression Standardized Residuals") 
+```
+
+```{r}
+# Check Constant Variance Assumption with Graph
+ggplot(data = mydata, mapping = aes(x = standardizedPredicted, y = standardizedResiduals)) + 
+  geom_point() +
+  geom_smooth(method = "lm") +
+  xlab("Fitted Values") + 
+  ylab("Residuals")
+```
+
+
+
+
+
+
+
+
+
+
+
+

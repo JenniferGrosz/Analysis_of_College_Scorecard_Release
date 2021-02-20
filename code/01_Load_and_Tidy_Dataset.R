@@ -53,7 +53,8 @@ trends_filelist <- list.files(path = "../data/",
 trends_df <- trends_filelist %>%
   map(read_csv) %>%
   map(process_file) %>%
-  bind_rows() 
+  bind_rows() %>%
+  na.omit()
 
 
 ##############################################################################
@@ -102,17 +103,17 @@ dups <- four_year %>%
 four_year <- four_year %>%
   filter(!(institution %in% dups$institution))
 
-# Create dummy variable to distinguish between high_earning v.
-# low earning colleges based on the mean of graduates earnings
-# ten years after graduating for colleges that have been included 
-# in the data set
-four_year <- four_year %>%
-  mutate(high_earning = case_when(
-    earnings >= mean(earnings) ~ 1,
-    earnings < mean(earnings) ~ 0))
 
 
 # Tidy trends_df 
+## Find count of keywords
+keywordcount <- trends_df %>%
+  group_by(schname) %>%
+  filter(!duplicated(keyword)) %>%
+  summarize(keywordcount=n())
+## Merge count of keywords with trends df
+trends_df <- left_join(trends_df, keywordcount, by = "schname") 
+
 trends_df <- trends_df %>%
   # Filter to only include 4 year colleges in df
   filter((schname %in% four_year$schname)) %>%
@@ -127,6 +128,8 @@ trends_df <- trends_df %>%
   # Create unique identifier 
   unite(col = "ID", c(schname, keyword, BeginningOfWeek), 
         sep = "--", remove = FALSE) 
+
+
 
 ##### Duplicates Check ##### 
 # Check for duplicates
@@ -155,11 +158,12 @@ trends_df <- trends_df %>%
 
 #### Clean up data set
 trends_df <- trends_df %>%
-  # Remove unnecessary columns 
-  select(schname, Year, Month, aggIndex) %>%
+ # # Remove unnecessary columns 
+  select(-ID) %>%
   # Convert to numeric data type
   mutate(Year = as.numeric(Year),
-         Month = as.numeric(Month)) %>%
+         Month = as.numeric(Month),
+         Day = as.numeric(Day)) %>%
   unite(col = "ID", c(schname, Year, Month, aggIndex), 
         sep = "--", remove = FALSE)
 
@@ -182,6 +186,18 @@ trends_df <- trends_df %>%
     Year == 2015 & Month >= 9 ~ 1,
     Year == 2015 & Month < 9 ~ 0)) 
 
+## Create time variable
+trends_df <- trends_df %>%
+  mutate(time = as.character(BeginningOfWeek)) %>%
+  mutate(time = time %>% str_replace_all("-", "")) %>%
+  mutate(time = time %>% str_sub(start = 1, end = 6)) %>%
+  mutate(time = as.numeric(time)) %>%
+  # order data set by time
+  arrange(time) %>%
+  # create incrementally increasing variable
+  mutate(time1 = cumsum(c(1,as.numeric(diff(time))!=0)))
+
+
 
 ########### Merge ###########
 # Merge data sets on schname
@@ -189,9 +205,18 @@ df <- left_join(four_year, trends_df, by = "schname")
 
 
 df <- df %>%
-  select(unitid, institution, Year, Month, aggIndex,
-         high_earning, CollegeScorecard) %>%
+  select(-opeid, -schname, -ID, -keyword, -time, -Day) %>%
+  rename(time = time1) %>%
   filter(aggIndex != "NA")
+
+# Create dummy variable to distinguish between high_earning v.
+# low earning colleges based on the mean of graduates earnings
+# ten years after graduating for colleges that have been included
+# in the data set
+df <- df %>%
+  mutate(high_earning = case_when(
+    earnings >= mean(earnings) ~ 1,
+    earnings < mean(earnings) ~ 0))
 
 write_csv(df,
           file = "../data/mydata.csv",
