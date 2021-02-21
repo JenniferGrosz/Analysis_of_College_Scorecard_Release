@@ -32,14 +32,15 @@ Some additional analysis I conducted was creating a 1-unit scaled variable that 
 I looked at the summary statistics for aggIndex and time variables in the data set as well as the standard deviation for the variable aggIndex which was 0.5791552. 
 
 Summary Statistics: 
+
     aggIndex            time_var    
  Min.   :-2.828712   Min.   : 1.00  
  1st Qu.:-0.378690   1st Qu.:10.00  
  Median :-0.018279   Median :19.00  
  Mean   : 0.005998   Mean   :19.21  
  3rd Qu.: 0.356663   3rd Qu.:28.00  
- Max.   : 6.854021   Max.   :37.00 
-
+ Max.   : 6.854021   Max.   :37.00  
+ 
 Then, I looked at the correlation between my independent variables to be used in the model and found the following results:
 
                  CollegeScorecard  high_earning     time_var
