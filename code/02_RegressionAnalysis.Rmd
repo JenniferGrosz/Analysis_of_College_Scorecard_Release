@@ -14,98 +14,118 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vtable)
 library(jtools)
-library(car)
 library(estimatr)
+library(haven)
+library(car)
 ```
 
 ### Load Data Set
 ```{r}
 mydata <- read_csv("../data/mydata.csv")
 # look at vtable
-vtable(mydata)
-# convert data types
+vtable(mydata) 
+
 mydata <- mydata %>%
   mutate(institution = factor(institution))
 ```
-
 ### Analyze Data Set
 Variables in data set:
   * "unitid" - unique college ID (numeric)
-  * "institution" - name of college (character)
-  * "earnings" - median earnings 10 year after graduation per institution (numeric)
-  * "high_earning" - Dummy variable to distinguish between high_earning v. low earning colleges based on the mean of median graduate earnings ten years after graduation (numeric)
-  * "BeginningOfWeek" - start date for Weekly Google Trends data  (date) 
-  * "Year" - year from BeginningOfWeek (numeric)
-  * "Month" - month from BeginningOfWeek (numeric)
-  * "Day" - day from BeginningOfWeek (numeric)
-  * "EndOfWeek" - end date for Weekly Google Trends data (date)
-  * "Index" - Index score from Google Trends Data
-  * "keywordcount" - number of keywords in Google Trends data per institution (numeric)
-  * "aggIndex" - index scores that have been standardized (subtract the mean and divide by the standard deviation) and then aggregated by college per month (numeric)
-  * "CollegeScorecard" - Dummy variable to distinguish between index scores from before the College Scorecard was released and after it was released at the beginning of September 2015 (numeric)
-  * "time1" - incrementally increases over time increases
+* "institution" - name of college (character)
+* "aggIndex" - index scores that have been standardized (subtract the mean and divide by the standard deviation) and then aggregated by college per month (numeric)
+* "high_earning" - Dummy variable to distinguish between high_earning v. low earning colleges based on the mean of median graduate earnings ten years after graduation (numeric)
+* "time_var" - incrementally increases over months (numeric)
+* "CollegeScorecard" - Dummy variable to distinguish between index scores from before the College Scorecard was released and after it was released at the beginning of September 2015 (numeric)
+* "time" - scaled variable that shows 1-unit change in decrease or increase around the date the college scorecard came out (numeric)
+
+
 ```{r}
 # institution
 institutions <- mydata %>% filter(!duplicated(institution)) %>%
   summarize(count=n()) # 1785 unique institutions in data set
 
-# Descriptive Statistics 
-summary(mydata[c("earnings", "BeginningOfWeek", "EndOfWeek",
-                 "keywordcount", "aggIndex", "high_earning", 
-                 "CollegeScorecard" )])
+# Summary Statistics for Aggregated index and time variable
+summary(mydata[c("aggIndex", "time_var")]) 
 
 # Standard Deviation
-sd(mydata$earnings) # standard deviation is 11803.74
 sd(mydata$aggIndex) # standard deviation is 0.5790659
-
-min(mydata$BeginningOfWeek) # March 24th, 2013
-max(mydata$EndOfWeek) # December 3rd, 2016
-
+# Correlation
+# Check correlation between independent variables
+cor(mydata[c("CollegeScorecard", "high_earning", "time_var")])
 ```
-This data set contains data collected between March 24th, 2013 through December 3rd, 2016. It includes data for 1785 institutions with a mean number of 3.278 keywords per institution. 
 
+
+```{r}
+hist(mydata$CollegeScorecard) # imbalanced histogram
+hist(mydata$high_earning)
+hist(mydata$time_var)
+hist(mydata$aggIndex)
+
+ggplot(mydata, aes(x = time_var, y = aggIndex, color = factor(high_earning))) + 
+  geom_point() + 
+  labs(title = "Aggregated Index Scores over Time",
+       x = "Time",
+       y = "Aggregated Index Scores",
+       color = "high earning")
+```
 
 # Regression Model 1
 ```{r}
-model1 <- lm(aggIndex ~ CollegeScorecard + time + high_earning, mydata)
-export_summs(model1)
+model <- lm(aggIndex ~ CollegeScorecard + high_earning 
+            + time_var + CollegeScorecard*time_var, mydata)
+export_summs(model, digits = 3, robust = TRUE)
+```
+
+```{r}
+# Hypothesis test for if CollegeScorecard were to have 0 effect on index scores
+linearHypothesis(model, "CollegeScorecard = 0", white.adjust = TRUE)
 ```
 
 
 ```{r}
-#Standardize Residuals
-unstandardizedResiduals <- resid(model1)
-standardizedResiduals <- (unstandardizedResiduals - mean(unstandardizedResiduals)) / sd(unstandardizedResiduals)
+# Graph of regression results for the effect of the CollegeScorecard on Aggregated Index Scores
+effect_plot(model, pred = "CollegeScorecard", plot.points = TRUE)
+
+# Regression results + differientatior high vs low earning college graduates:
+ggplot(data=mydata, 
+       aes(x=CollegeScorecard, y = aggIndex, 
+           group= high_earning, 
+           color=factor(high_earning))) + 
+  geom_line() + 
+  xlab("CollegeScorecard") + 
+  ylab("Aggregate Index") + 
+  scale_color_discrete(name = "high_earning", 
+                        labels=c("low_earning", "high_earning"))
+
+
+# Standardize residuals
+unstandardizedResiduals <- resid(model)
+standardizedResiduals <- ((unstandardizedResiduals - mean(unstandardizedResiduals))/ sd(unstandardizedResiduals))
 
 # Standardize Predicted Values
-unstandardizedPredicted <- predict(model1)
-standardizedPredicted <- (unstandardizedPredicted - mean(unstandardizedPredicted)) / sd(unstandardizedPredicted)
+unstandardizedPredicted <- predict(model)
+standardizedPredicted <- ((unstandardizedPredicted - mean(unstandardizedPredicted)) /sd(unstandardizedPredicted))
 
-```
-
-```{r}
+# Check Normality Assumption with Graph
 ggplot(data = mydata) +
-  geom_histogram(mapping = aes(x = standardizedResiduals), binwidth = 1) +
+  geom_histogram(mapping = aes(x = aggIndex), binwidth = 1) +
   xlab("Regression Standardized Residuals") 
-```
 
-```{r}
 # Check Constant Variance Assumption with Graph
-ggplot(data = mydata, mapping = aes(x = standardizedPredicted, y = standardizedResiduals)) + 
+ggplot(data = mydata, mapping = aes(x = standardizedPredicted, y = standardizedResiduals, color = factor(high_earning))) + 
   geom_point() +
   geom_smooth(method = "lm") +
   xlab("Fitted Values") + 
-  ylab("Residuals")
+  ylab("StandardizedResiduals")+ 
+  scale_color_discrete(name = '', labels=c("low_earning", "high_earning"))
 ```
 
 
-
-
-
-
-
-
-
-
+```{r}
+# Other models explored
+reg1 <- lm(aggIndex ~ CollegeScorecard*time_var, mydata)
+primary_model <- model
+export_summs(reg1, primary_model, digits = 3, robust = TRUE)
+```
 
 
