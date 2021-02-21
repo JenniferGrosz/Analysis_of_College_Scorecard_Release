@@ -1,10 +1,7 @@
-
 # Load relevant libraries
-#library(haven)
 library(vtable)
 library(tidyverse)
 library(tidylog)
-#library(readr)
 library(purrr)
 library(lubridate)
 
@@ -46,8 +43,8 @@ id_link <- read_csv("../data/id_name_link.csv")
 # Load Google Trends Data - 12 files
 # Generate list of files
 trends_filelist <- list.files(path = "../data/",
-                       pattern = 'trends',
-                       full.names = TRUE)
+                              pattern = 'trends',
+                              full.names = TRUE)
 
 # Load Google trends data using the process file function 
 trends_df <- trends_filelist %>%
@@ -65,22 +62,23 @@ trends_df <- trends_filelist %>%
 four_year <- four_year %>%
   # Rename variables
   rename(unitid = UNITID, institution = INSTNM, 
-         earnings = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
+         grad_earnings = `md_earn_wne_p10-REPORTED-EARNINGS`) %>%
   # Filter data to include predom. 4 year degree colleges only
   # and remove NULL / PrivacySuppressed values from earnings col.
-  filter(PREDDEG == 3, earnings != "PrivacySuppressed",
-         earnings != "NULL") %>%
+  filter(PREDDEG == 3, grad_earnings != "PrivacySuppressed",
+         grad_earnings != "NULL") %>%
   # Select relevant variables to include
-  select(unitid, institution, earnings) %>%
-  # Change data types
-  mutate(earnings = as.numeric(earnings),
-         institution = factor(institution))
+  mutate(grad_earnings = as.numeric(grad_earnings))
 
-
-# Tidy id_link
-id_link %>%
-  # Remove unnecessary column
-  select(-opeid)
+mean(four_year$grad_earnings)
+# Create dummy variable to distinguish between high earning v.
+# low earning colleges based on the mean of graduates earnings
+# ten years after graduating for colleges that have been included
+# in the data set
+four_year <- four_year %>%
+  mutate(high_earning = case_when(
+    grad_earnings >= mean(grad_earnings) ~ 1,
+    grad_earnings < mean(grad_earnings) ~ 0))
 
 
 ##### Duplicates Check ######
@@ -103,131 +101,119 @@ dups <- four_year %>%
 four_year <- four_year %>%
   filter(!(institution %in% dups$institution))
 
-
-
-# Tidy trends_df 
-## Find count of keywords
-keywordcount <- trends_df %>%
-  group_by(schname) %>%
-  filter(!duplicated(keyword)) %>%
-  summarize(keywordcount=n())
-## Merge count of keywords with trends df
-trends_df <- left_join(trends_df, keywordcount, by = "schname") 
-
-trends_df <- trends_df %>%
-  # Filter to only include 4 year colleges in df
-  filter((schname %in% four_year$schname)) %>%
-  # Remove NA's
-  filter(index != "NA") %>%
-  # Split monthorweek column
-  separate(monthorweek, into = c("BeginningOfWeek", "EndOfWeek"), 
-           sep = " - ") %>%
-  # Convert to date data type
-  mutate(BeginningOfWeek = as.Date(BeginningOfWeek),
-         EndOfWeek = as.Date(EndOfWeek))  %>%
-  # Create unique identifier 
-  unite(col = "ID", c(schname, keyword, BeginningOfWeek), 
-        sep = "--", remove = FALSE) 
-
-
-
-##### Duplicates Check ##### 
-# Check for duplicates
-check_dupes(trends_df, "ID") # 1 = Duplicates in data set
-# Remove duplicates from data set
-trends_df <- trends_df %>%
-  filter(!duplicated(ID))
+########### Merge ###########
+# Merge data sets on schname
+full_data <- left_join(four_year, trends_df, by = "schname")
+# Filter out NA 
+full_data <- full_data %>%
+  filter(index != "NA")
 
 # Standardize Index Scores  
-trends_df <- trends_df %>%
+full_data <- full_data %>%
   # group by keyword to calculate standardized index
-  group_by(schname, keyword) %>%
+  group_by(institution, keyword)%>%
   # New column and caluclation for standardized index value
-  mutate(standardizedIndex = ((index - mean(index)) / sd(index))) 
+  mutate(standardizedIndex = ((index - mean(index)) / sd(index))) %>%
+  ungroup()
 
-# Aggregate standardized indexes by institution per month per year 
-trends_df <- trends_df %>%
-  # Split up column to get month and Year
-  separate(BeginningOfWeek, into = c("Year", "Month", "Day"), 
+
+# Aggregate Index per college by month
+full_data <- full_data %>%
+  # split column
+  separate(monthorweek, into = c("Wkstartdate", "Wkenddate"), 
+           sep = " - ") %>%
+  # convert to date data type
+  mutate(Wkstartdate = ymd(Wkstartdate)) %>%
+  # split column
+  separate(Wkstartdate, into = c("year", "month"), 
            sep = "-", remove = FALSE) %>%
-  # group by institution, year, and month 
-  group_by(schname, Year, Month) %>%
-  # Create new column with mean of standardized index as aggregate 
+  # convert to numeric data type
+  mutate(year = as.numeric(year),
+         month = as.numeric(month)) %>% 
+  # group data set
+  group_by(institution, year, month) %>%
+  # New column and caluclation for aggregated standardized index value
   mutate(aggIndex = mean(standardizedIndex)) %>%
   ungroup()
 
-#### Clean up data set
-trends_df <- trends_df %>%
- # # Remove unnecessary columns 
-  select(-ID) %>%
-  # Convert to numeric data type
-  mutate(Year = as.numeric(Year),
-         Month = as.numeric(Month),
-         Day = as.numeric(Day)) %>%
-  unite(col = "ID", c(schname, Year, Month, aggIndex), 
-        sep = "--", remove = FALSE)
 
-##### Duplicates Check ##### 
-# Check for duplicates
-check_dupes(trends_df, "ID") # 0 = No Duplicates
-# Remove duplicates from data set
-trends_df <- trends_df %>%
+# Create unique identifier to filter out duplicates
+final_data_set <- full_data %>%
+  # remove unnecessary columns
+  select(unitid, institution, grad_earnings, year, month, 
+         aggIndex, high_earning, Wkstartdate) %>%
+  # Unite columns to generate unique identifier
+  unite(col = "ID", c(unitid, year, month), 
+        sep = "_", remove = FALSE) %>%
+  # filter out duplicates in data
   filter(!duplicated(ID))
 
-
-# Create dummy variable to distinguish between index scores from
-# before the College Scorecard was released and after it was 
-# released at the beginning of September 2015 
-trends_df <- trends_df %>%
-  # Create college scorecard dummy variable
-  mutate(CollegeScorecard = case_when(
-    Year > 2015  ~ 1,
-    Year < 2015  ~ 0,
-    Year == 2015 & Month >= 9 ~ 1,
-    Year == 2015 & Month < 9 ~ 0)) 
-
 ## Create time variable
-trends_df <- trends_df %>%
-  mutate(time = as.character(BeginningOfWeek)) %>%
+final_data_set <- final_data_set %>%
+  mutate(time = as.character(Wkstartdate)) %>%
   mutate(time = time %>% str_replace_all("-", "")) %>%
   mutate(time = time %>% str_sub(start = 1, end = 6)) %>%
   mutate(time = as.numeric(time)) %>%
   # order data set by time
+  arrange(time)  %>%
+  # create incrementally increasing variable
+  mutate(time1 = cumsum(c(1,as.numeric(diff(time))!=0))) %>%
+  # remove unnecessary column
+  select(-time) %>%
+  rename(time = time1) %>%
+  mutate(time_var = time)
+
+# Create dummy variable to distinguish between index scores from
+# before the College Scorecard was released and after it was 
+# released at the beginning of September 2015 
+final_data_set <- final_data_set %>%
+  # Create college scorecard dummy variable
+  mutate(CollegeScorecard = case_when(
+    year > 2015  ~ 1,
+    year < 2015  ~ 0,
+    year == 2015 & month >= 9 ~ 1,
+    year == 2015 & month < 9 ~ 0)) 
+
+PostCollegeScorecard <- final_data_set %>%
+  filter(CollegeScorecard == 1)
+
+PostCollegeScorecard <- PostCollegeScorecard %>% 
+  # order data set by time
   arrange(time) %>%
   # create incrementally increasing variable
-  mutate(time1 = cumsum(c(1,as.numeric(diff(time))!=0)))
+  mutate(time1 = cumsum(c(1,as.numeric(diff(time))!=0)))%>%
+  # remove unnecessary column
+  select(-time) %>%
+  # rename column
+  rename(time = time1) 
+
+PreCollegeScorecard <- final_data_set %>%
+  filter(CollegeScorecard == 0)
 
 
+PreCollegeScorecard <- PreCollegeScorecard %>% 
+  # order data set by time
+  arrange(-time) %>%
+  # create incrementally increasing variable
+  mutate(time1 = cumsum(c(1,as.numeric(diff(time))!=0)))%>%
+  # create descending time scale
+  mutate(time1 = (time1 * -1)) %>%
+  # remove unnecessary column
+  select(-time) %>%
+  # rename column
+  rename(time = time1) 
 
-########### Merge ###########
-# Merge data sets on schname
-df <- left_join(four_year, trends_df, by = "schname") 
+final_data_set <- bind_rows(PreCollegeScorecard, PostCollegeScorecard)
 
+final_data_set <- final_data_set %>%
+  select(-ID, -Wkstartdate, -grad_earnings, -year, -month)
+  
 
-df <- df %>%
-  select(-opeid, -schname, -ID, -keyword, -time, -Day) %>%
-  rename(time = time1) %>%
-  filter(aggIndex != "NA")
-
-# Create dummy variable to distinguish between high_earning v.
-# low earning colleges based on the mean of graduates earnings
-# ten years after graduating for colleges that have been included
-# in the data set
-df <- df %>%
-  mutate(high_earning = case_when(
-    earnings >= mean(earnings) ~ 1,
-    earnings < mean(earnings) ~ 0))
-
-write_csv(df,
+# Write final data set to file for regression analysis
+write_csv(final_data_set,
           file = "../data/mydata.csv",
           na = "NA",
           append = FALSE,
           col_names = TRUE,
           quote_escape = "double",
           eol = "\n")
-
-
-
-
-
-
