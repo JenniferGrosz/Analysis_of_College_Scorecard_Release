@@ -10,7 +10,7 @@ From the Google Trends data files, I have used the dates associated with college
 The resulting data set used in this analysis contains data collected between March 2013 through December 2016. It includes aggregated index data for 1785 institutions, a time variable representing the passage of time in 1-unit incrementally increasing values over the span of 37 months and two dummy variables I created to represent high-earning vs low-earning college graduate earnings and pre-scorecard vs post-scorecard to represent data released before and after the College Scorecard was released.
 
 ## Research Question
-*The College Scorecard was released at the start of September 2015. Among colleges that predominantly grant bachelor’s degrees, did it result in more student interest in high-earnings colleges relative to low-earnings ones (as proxied by Google searches for keywords associated with those colleges)?
+*The College Scorecard was released at the start of September 2015. Among colleges that predominantly grant bachelor’s degrees, did it result in more student interest in high-earnings colleges relative to low-earnings ones (as proxied by Google searches for keywords associated with those colleges)?*
 
 
 This analysis determines the effect of the College Scorecard being released to the public on interest in high-earning colleges relative to low-earning ones as proxied by Google searches for keywords associated with those colleges. The primary regression model that will be analyzing to address this research question is:
