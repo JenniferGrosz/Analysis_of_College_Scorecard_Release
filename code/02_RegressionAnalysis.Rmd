@@ -72,7 +72,7 @@ ggplot(mydata, aes(x = time_var, y = aggIndex, color = factor(high_earning))) +
 # Regression Model 1
 ```{r}
 model <- lm(aggIndex ~ CollegeScorecard + high_earning 
-            + time_var + CollegeScorecard*time_var, mydata)
+            + time_var + CollegeScorecard*time_var + CollegeScorecard*high_earning, mydata)
 export_summs(model, digits = 3, robust = TRUE)
 ```
 
@@ -120,7 +120,7 @@ ggplot(data = mydata, mapping = aes(x = standardizedPredicted, y = standardizedR
   scale_color_discrete(name = '', labels=c("low_earning", "high_earning"))
 ```
 
-
+#### Additional Regression Model
 ```{r}
 # Other models explored
 reg1 <- lm(aggIndex ~ CollegeScorecard*time_var, mydata)
