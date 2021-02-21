@@ -10,6 +10,9 @@ From the Google Trends data files, I have used the dates associated with college
 The resulting data set used in this analysis contains data collected between March 2013 through December 2016. It includes aggregated index data for 1785 institutions, a time variable representing the passage of time in 1-unit incrementally increasing values over the span of 37 months and two dummy variables I created to represent high-earning vs low-earning college graduate earnings and pre-scorecard vs post-scorecard to represent data released before and after the College Scorecard was released.
 
 ## Research Question
+*The College Scorecard was released at the start of September 2015. Among colleges that predominantly grant bachelor’s degrees, did it result in more student interest in high-earnings colleges relative to low-earnings ones (as proxied by Google searches for keywords associated with those colleges)?
+
+
 This analysis determines the effect of the College Scorecard being released to the public on interest in high-earning colleges relative to low-earning ones as proxied by Google searches for keywords associated with those colleges. The primary regression model that will be analyzing to address this research question is:
 
 #### model <- lm(aggIndex ~ CollegeScorecard + high_earning + time_var + CollegeScorecard * time_var + CollegeScorecard * high_earning, mydata)
@@ -48,13 +51,13 @@ There is a strong positive correlation between Time and CollegeScorecard (correl
 
 Next, I generated histogram plots for the variables used in my regression analysis to determine see how they are distributed in the data set. While not detrimentally problematic, I found it worth noting that due to the timeline in this dataset (2013 – 2016) there is an imbalance for the variable CollegeScorecard and data prior to the release of the College Scorecard is oversampled in the data set.
 
-![collegescorecard histogram](/images/https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/collegescorecard_histogram.png?raw=true)
+![collegescorecard histogram](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/collegescorecard_histogram.png?raw=true)
 
 ![indexHistogram](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/indexHistogram.png?raw=true)
 
 Additionally, I generated a scatterplot of aggregated Google Trends indices over time and colored the points to represent high-earning colleges compared to low-earning colleges where high-earning = 1 in the plot.
 
-![Aggregated Index over Time Scatterplot](../images/indexovertimeplot.png)
+![Aggregated Index over Time Scatterplot](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/indexovertimeplot.png?raw=true)
 
 ## Analysis
 
@@ -94,9 +97,12 @@ Note: Coefficient covariance matrix supplied.
 1  65280                        
 2  65279  1 512.37 < 2.2e-16 ***
 
+![regressionplot](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/RegressionPlot.png?raw=true)
+![highvlowplot](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/RegressionPlot_highvslow.png?raw=true)
 
+![Normality Assumption](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/NormalityAssumptionCheck.png?raw=true)
 
-
+![Constant Variance](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/ConstantVarianceCheck.png?raw=true)
 ## Conclusion
 All I am going to discuss are effects are statistically significant at the 1% level except for the effect of high-earning college graduates relative to low-earning college graduates, that effect is statistically significant at the 10% level.
 
