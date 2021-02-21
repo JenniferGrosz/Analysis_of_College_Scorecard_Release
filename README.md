@@ -33,20 +33,11 @@ I looked at the summary statistics for aggIndex and time variables in the data s
 
 Summary Statistics: 
 
-    aggIndex            time_var    
- Min.   :-2.828712   Min.   : 1.00  
- 1st Qu.:-0.378690   1st Qu.:10.00  
- Median :-0.018279   Median :19.00  
- Mean   : 0.005998   Mean   :19.21  
- 3rd Qu.: 0.356663   3rd Qu.:28.00  
- Max.   : 6.854021   Max.   :37.00  
+![summary statistics](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/summarystats.png?raw=true)
  
 Then, I looked at the correlation between my independent variables to be used in the model and found the following results:
 
-                 CollegeScorecard  high_earning     time_var
-CollegeScorecard     1.0000000000 -0.0005919931  0.681418961
-high_earning        -0.0005919931  1.0000000000 -0.002098281
-time_var             0.6814189610 -0.0020982814  1.000000000
+![correlationmatrix](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/corr.png?raw=true)
 
 There is a strong positive correlation between Time and CollegeScorecard (correlation coefficient of 0.681418961) which indicates that the interaction term used in my model is valid. Additionally, there is a very low negative correlation for both CollegeScorecard and time with the high_earning variables in my model. 
 
