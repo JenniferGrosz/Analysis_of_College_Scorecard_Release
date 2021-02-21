@@ -12,7 +12,7 @@ The resulting data set used in this analysis contains data collected between Mar
 ## Research Question
 This analysis determines the effect of the College Scorecard being released to the public on interest in high-earning colleges relative to low-earning ones as proxied by Google searches for keywords associated with those colleges. The primary regression model that will be analyzing to address this research question is:
 
-## model <- lm(aggIndex ~ CollegeScorecard + high_earning + time_var + CollegeScorecard * time_var + CollegeScorecard * high_earning, mydata)
+#### model <- lm(aggIndex ~ CollegeScorecard + high_earning + time_var + CollegeScorecard * time_var + CollegeScorecard * high_earning, mydata)
 
 This regression model addresses the research question because the results will return the effect the College Scorecard being released proxied by Google searches for keywords associated with the dates after the College Scorecard was released relative to Google searches for keywords associated with dates prior to the release of the College Scorecard. 
 
@@ -48,8 +48,9 @@ There is a strong positive correlation between Time and CollegeScorecard (correl
 
 Next, I generated histogram plots for the variables used in my regression analysis to determine see how they are distributed in the data set. While not detrimentally problematic, I found it worth noting that due to the timeline in this dataset (2013 – 2016) there is an imbalance for the variable CollegeScorecard and data prior to the release of the College Scorecard is oversampled in the data set.
 
-![high_earningHistogram](../images/high_earningHistogram.png)
-![indexHistogram](../images/indexHistogram.png)
+![collegescorecard histogram](/images/https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/collegescorecard_histogram.png?raw=true)
+
+![indexHistogram](https://github.com/JenniferGrosz/Data_Exploration_Assignment_5300/blob/main/images/indexHistogram.png?raw=true)
 
 Additionally, I generated a scatterplot of aggregated Google Trends indices over time and colored the points to represent high-earning colleges compared to low-earning colleges where high-earning = 1 in the plot.
 
