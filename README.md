@@ -2,6 +2,9 @@
 OMSBA 5300 Winter 2021 Data Exploration Assignment
 #### Author: Jennifer Grosz
 
+## The Analysis
+The College Scorecard isn’t just data for us - it’s also treatment! The College Scorecard is a public-facing website that contains important information about colleges, including how much its graduates earn. This information has traditionally been very difficult to find.
+
 ## Data Overview
 The analysis performed here is at the “by month by college level” meaning the Google Trends index per college has been standardized and aggregated by month. The data set used for this analysis is composed of data from the College Scorecard and Google Trends data files. From the College Scorecard data file, I have included institutions that predominantly grant bachelor’s degrees and a variable distinguishing between high earning and low earning colleges as a calculation of the mean of all median earnings for students 10 years after graduation, which is approximately $42,000. The mean has been used in the determination of this variable rather than the median because it takes into consideration all median earnings in its calculation and I felt that was the best measure for deafferenting between high and low earning colleges.
 
