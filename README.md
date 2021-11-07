@@ -1,6 +1,6 @@
 # Data_Exploration_Assignment - Applied Econometrics
-OMSBA 5300 Winter 2021 Data Exploration Assignment
-#### Author: Jennifer Grosz
+##### Seattle University - Applied Econometrics 5300 - Data Translation Challenge March 2021
+##### Author: Jennifer Grosz
 
 ## The Analysis
 The College Scorecard isn’t just data for us - it’s also treatment! The College Scorecard is a public-facing website that contains important information about colleges, including how much its graduates earn. This information has traditionally been very difficult to find.
