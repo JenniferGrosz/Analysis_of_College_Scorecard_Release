@@ -1,4 +1,4 @@
-# Data_Exploration_Assignment - Applied Econometrics
+# Applied Econometrics - Effect of the College Scorecard Release
 ##### Seattle University - Applied Econometrics 5300 - Data Translation Challenge March 2021
 ##### Author: Jennifer Grosz
 
